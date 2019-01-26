@@ -1,8 +1,8 @@
-use errno::{errno, Errno};
 use crate::glfs::*;
+use errno::{errno, Errno};
 use libc::{
-    c_uchar, c_void, dev_t, dirent, flock, ino_t, mode_t, stat, statvfs, timespec, DT_DIR, ENOENT,
-    LOCK_EX, LOCK_SH, LOCK_UN,
+    c_char, c_uchar, c_void, dev_t, dirent, flock, ino_t, mode_t, off_t, stat, statvfs, timespec,
+    DT_DIR, ENOENT, LOCK_EX, LOCK_SH, LOCK_UN,
 };
 use uuid::Uuid;
 
@@ -438,7 +438,7 @@ impl Gluster {
         unsafe {
             let ret_code = glfs_get_volumeid(
                 self.cluster_handle,
-                buff.as_mut_ptr() as *mut i8,
+                buff.as_mut_ptr() as *mut c_char,
                 buff.capacity(),
             );
             if ret_code < 0 {
@@ -481,7 +481,7 @@ impl Gluster {
         let path = CString::new(path.as_os_str().as_bytes())?;
 
         unsafe {
-            let ret_code = glfs_truncate(self.cluster_handle, path.as_ptr(), length);
+            let ret_code = glfs_truncate(self.cluster_handle, path.as_ptr(), length as off_t);
             if ret_code < 0 {
                 return Err(GlusterError::new(get_error()));
             }
@@ -568,7 +568,7 @@ impl Gluster {
             let ret_code = glfs_readlink(
                 self.cluster_handle,
                 path.as_ptr(),
-                buf.as_mut_ptr() as *mut i8,
+                buf.as_mut_ptr() as *mut c_char,
                 buf.len(),
             );
             if ret_code < 0 {
@@ -908,7 +908,7 @@ impl Gluster {
         unsafe {
             let cwd = glfs_getcwd(
                 self.cluster_handle,
-                cwd_val_buff.as_mut_ptr() as *mut i8,
+                cwd_val_buff.as_mut_ptr() as *mut c_char,
                 cwd_val_buff.len(),
             );
             Ok(CStr::from_ptr(cwd).to_string_lossy().into_owned())
@@ -1067,7 +1067,7 @@ impl GlusterFile {
                 self.file_handle,
                 fill_buffer.as_mut_ptr() as *mut c_void,
                 count,
-                offset,
+                offset as off_t,
                 flags,
             );
             if read_size < 0 {
@@ -1089,7 +1089,7 @@ impl GlusterFile {
                 self.file_handle,
                 buffer.as_ptr() as *mut c_void,
                 count,
-                offset,
+                offset as off_t,
                 flags,
             );
             if write_size < 0 {
@@ -1110,7 +1110,7 @@ impl GlusterFile {
                 self.file_handle,
                 iov.as_ptr() as *const iovec,
                 iov.len() as i32,
-                offset,
+                offset as off_t,
                 flags,
             );
             if read_size < 0 {
@@ -1126,7 +1126,7 @@ impl GlusterFile {
                 self.file_handle,
                 iov.as_ptr() as *const iovec,
                 iov.len() as i32,
-                offset,
+                offset as off_t,
                 flags,
             );
             if write_size < 0 {
@@ -1137,16 +1137,16 @@ impl GlusterFile {
     }
     pub fn lseek(&self, offset: i64, whence: i32) -> Result<i64, GlusterError> {
         unsafe {
-            let file_offset = glfs_lseek(self.file_handle, offset, whence);
+            let file_offset = glfs_lseek(self.file_handle, offset as off_t, whence);
             if file_offset < 0 {
                 return Err(GlusterError::new(get_error()));
             }
-            Ok(file_offset)
+            Ok(file_offset.into())
         }
     }
     pub fn ftruncate(&self, length: i64) -> Result<(), GlusterError> {
         unsafe {
-            let ret_code = glfs_ftruncate(self.file_handle, length);
+            let ret_code = glfs_ftruncate(self.file_handle, length as off_t);
             if ret_code < 0 {
                 return Err(GlusterError::new(get_error()));
             }
@@ -1247,7 +1247,7 @@ impl GlusterFile {
     }
     pub fn fallocate(&self, offset: i64, keep_size: i32, len: usize) -> Result<(), GlusterError> {
         unsafe {
-            let ret_code = glfs_fallocate(self.file_handle, keep_size, offset, len);
+            let ret_code = glfs_fallocate(self.file_handle, keep_size, offset as off_t, len);
             if ret_code < 0 {
                 return Err(GlusterError::new(get_error()));
             }
@@ -1256,7 +1256,7 @@ impl GlusterFile {
     }
     pub fn discard(&self, offset: i64, len: usize) -> Result<(), GlusterError> {
         unsafe {
-            let ret_code = glfs_discard(self.file_handle, offset, len);
+            let ret_code = glfs_discard(self.file_handle, offset as off_t, len);
             if ret_code < 0 {
                 return Err(GlusterError::new(get_error()));
             }
@@ -1265,7 +1265,7 @@ impl GlusterFile {
     }
     pub fn zerofill(&self, offset: i64, len: i64) -> Result<(), GlusterError> {
         unsafe {
-            let ret_code = glfs_zerofill(self.file_handle, offset, len);
+            let ret_code = glfs_zerofill(self.file_handle, offset as off_t, len as off_t);
             if ret_code < 0 {
                 return Err(GlusterError::new(get_error()));
             }
